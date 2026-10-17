@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plumb Line Posture</title>
+<meta name="description" content="Posture and range-of-motion screening for the clinic iPad.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0D6680">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Plumb Line">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Layout: clinical instrument — a top bar, one working column; on iPad landscape the photo canvas and its readings sit side by side, plumb line vermilion is the only loud colour. */
+:root{
+  --bg:#EEF2F3; --surface:#FFFFFF; --sunk:#E3E9EB; --ink:#13212A; --muted:#566872; --line:#CBD6DA;
+  --accent:#0D6680; --accent-ink:#FFFFFF; --plumb:#D2461E;
+  --ok:#2C8A4B; --warn:#B87D00; --bad:#C23A2E;
+  --ok-bg:#E2F2E7; --warn-bg:#FBF0D6; --bad-bg:#F8E1DE;
+  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Figtree", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-data:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1418; --surface:#152027; --sunk:#0A1014; --ink:#E4ECEF; --muted:#93A4AD; --line:#2A3943;
+  --accent:#4DB2D0; --accent-ink:#06222C; --plumb:#FF7A4D;
+  --ok:#4CC274; --warn:#E6B13C; --bad:#F2695B;
+  --ok-bg:#16301F; --warn-bg:#33290F; --bad-bg:#3A1A17; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0D1418; --surface:#152027; --sunk:#0A1014; --ink:#E4ECEF; --muted:#93A4AD; --line:#2A3943;
+  --accent:#4DB2D0; --accent-ink:#06222C; --plumb:#FF7A4D;
+  --ok:#4CC274; --warn:#E6B13C; --bad:#F2695B;
+  --ok-bg:#16301F; --warn-bg:#33290F; --bad-bg:#3A1A17; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;line-height:1.15;margin:0;text-wrap:balance}
+h1{font-size:1.75rem} h2{font-size:1.3rem} h3{font-size:1.05rem}
+.num{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.bar-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:1.15rem;white-space:nowrap}
+.brand svg{flex:none}
+.bar .spacer{flex:1}
+.crumb{color:var(--muted);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+/* buttons */
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:10px 18px;min-height:44px;
+  font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.row:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;border-color:transparent;padding-inline:10px}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.btn.danger.armed{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.sm{min-height:36px;padding:6px 14px;font-size:.9rem}
+.btns{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+label.btn input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+label.btn{position:relative}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.head>div{min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px;min-height:44px;width:100%}
+.field textarea{min-height:90px;resize:vertical}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--accent)}
+
+/* patient rows */
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;background:var(--surface);text-align:left;width:100%;border-left:0;border-right:0;border-top:0}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--sunk)}
+.row .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.row .name{font-weight:600;font-size:1.05rem}
+.row .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;color:var(--accent);flex:none}
+.badge{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.badge.ex{background:color-mix(in srgb,var(--plumb) 16%,transparent);color:var(--plumb)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+/* status pills */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)} .dot.none{background:var(--line)}
+
+/* chips / tabs */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;min-height:40px;font-weight:600;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .tick{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;opacity:.5}
+.chip .tick.done{background:var(--ok);border-color:var(--ok);opacity:1}
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:999px;align-self:flex-start;flex-wrap:wrap}
+.tab{appearance:none;border:0;background:transparent;border-radius:999px;padding:9px 18px;min-height:40px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* editor */
+.editor{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:820px){.editor{grid-template-columns:1fr}}
+.stage{background:var(--sunk);border-radius:var(--r);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;min-height:320px;position:relative;overflow:hidden}
+.stage canvas{display:block;touch-action:none;max-width:100%}
+.stage .placeholder{padding:30px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:14px;align-items:center;max-width:420px}
+.status-line{font-size:.85rem;color:var(--muted);min-height:1.3em}
+.status-line.warnmsg{color:var(--warn)}
+
+/* readings table */
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.v{font-family:var(--f-data);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tscroll{overflow-x:auto;min-width:0}
+.tscroll table{min-width:480px}
+
+/* ROM list */
+.romgroups{display:flex;flex-direction:column;gap:14px}
+.romgroup{display:flex;flex-direction:column;gap:8px}
+.romitems{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:8px}
+.romitem{appearance:none;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:56px}
+.romitem[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.romitem .rv{font-family:var(--f-data);font-size:.85rem;color:var(--muted)}
+
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.compare-grid figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.compare-grid canvas{width:100%;height:auto;border-radius:8px;background:var(--sunk);border:1px solid var(--line)}
+.up{color:var(--ok);font-weight:600} .down{color:var(--bad);font-weight:600}
+
+.note{background:var(--sunk);border-radius:8px;padding:12px 14px;font-size:.9rem;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:600;z-index:20;max-width:calc(100% - 32px);text-align:center}
+.tips{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--muted)}
+@media (prefers-reduced-motion: no-preference){.row,.btn,.chip{transition:background .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+  <button class="btn ghost" id="backBtn" hidden aria-label="Back">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="brand">
+    <svg width="22" height="30" viewBox="0 0 22 30" aria-hidden="true"><line x1="11" y1="1" x2="11" y2="17" stroke="var(--plumb)" stroke-width="2"/><path d="M5 17h12l-6 12z" fill="var(--plumb)"/></svg>
+    Plumb Line
+  </div>
+  <div class="crumb" id="crumb"></div>
+  <div class="spacer"></div>
+  <button class="btn ghost sm" id="settingsBtn">Settings</button>
+</div></header>
+<main><div class="wrap" id="view"></div></main>
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   Landmark model (MediaPipe Pose indices)
+   ============================================================ */
+const MP={nose:0,leye:2,reye:5,lear:7,rear:8,lsh:11,rsh:12,lel:13,rel:14,lwr:15,rwr:16,lhip:23,rhip:24,lkn:25,rkn:26,lank:27,rank:28};
+const PT_LABEL={nose:"Nose",leye:"L eye",reye:"R eye",lear:"L ear",rear:"R ear",lsh:"L shoulder",rsh:"R shoulder",lel:"L elbow",rel:"R elbow",
+  lwr:"L wrist",rwr:"R wrist",lhip:"L hip",rhip:"R hip",lkn:"L knee",rkn:"R knee",lank:"L ankle",rank:"R ankle",
+  ear:"Ear",eye:"Eye",sh:"Shoulder",hip:"Hip",top:"Head top",floor:"Floor"};
+const GENERIC={ear:["rear","lear"],eye:["reye","leye"],sh:["rsh","lsh"],hip:["rhip","lhip"]};
+
+/* Posture views */
+const VIEWS={
+  anterior:{label:"Anterior",kind:"frontal",front:true,pts:["reye","leye","nose","rsh","lsh","rhip","lhip","rkn","lkn","rank","lank"],
+    tip:"Patient faces the camera, feet hip-width, arms relaxed."},
+  rlat:{label:"Right lateral",kind:"lateral",facing:1,pts:["rear","rsh","rhip","rkn","rank"],tip:"Right side towards the camera, looking straight ahead."},
+  llat:{label:"Left lateral",kind:"lateral",facing:-1,pts:["lear","lsh","lhip","lkn","lank"],tip:"Left side towards the camera, looking straight ahead."},
+  posterior:{label:"Posterior",kind:"frontal",front:false,pts:["rear","lear","rsh","lsh","rhip","lhip","rkn","lkn","rank","lank"],
+    tip:"Back to the camera, hair off the neck if possible."}
+};
+const VIEW_ORDER=["anterior","rlat","llat","posterior"];
+
+/* Range of motion tests — typical adult values (AAOS-style) used as the reference */
+const ROM=[
+  {key:"cfl",region:"Cervical",label:"Flexion",view:"lateral",pts:["ear","eye"],m:"headPitch",dir:1,norm:50,tip:"Side-on. Chin to chest as far as comfortable."},
+  {key:"cex",region:"Cervical",label:"Extension",view:"lateral",pts:["ear","eye"],m:"headPitch",dir:-1,norm:60,tip:"Side-on. Look up to the ceiling."},
+  {key:"clfL",region:"Cervical",label:"Lateral flexion L",view:"frontal",pts:["reye","leye"],m:"tilt",norm:45,tip:"Facing camera. Left ear towards left shoulder, no shoulder hitch."},
+  {key:"clfR",region:"Cervical",label:"Lateral flexion R",view:"frontal",pts:["reye","leye"],m:"tilt",norm:45,tip:"Facing camera. Right ear towards right shoulder."},
+  {key:"sflL",region:"Shoulder",label:"Flexion L",view:"lateral",pts:["lhip","lsh","lwr"],m:"angle3",norm:180,tip:"Left side to camera. Raise the straight arm forward and up."},
+  {key:"sflR",region:"Shoulder",label:"Flexion R",view:"lateral",pts:["rhip","rsh","rwr"],m:"angle3",norm:180,tip:"Right side to camera. Raise the straight arm forward and up."},
+  {key:"sabL",region:"Shoulder",label:"Abduction L",view:"frontal",pts:["lhip","lsh","lwr"],m:"angle3",norm:180,tip:"Facing camera. Raise the left arm out to the side and up."},
+  {key:"sabR",region:"Shoulder",label:"Abduction R",view:"frontal",pts:["rhip","rsh","rwr"],m:"angle3",norm:180,tip:"Facing camera. Raise the right arm out to the side and up."},
+  {key:"sexL",region:"Shoulder",label:"Extension L",view:"lateral",pts:["lhip","lsh","lwr"],m:"angle3",norm:60,tip:"Left side to camera. Take the straight arm back."},
+  {key:"sexR",region:"Shoulder",label:"Extension R",view:"lateral",pts:["rhip","rsh","rwr"],m:"angle3",norm:60,tip:"Right side to camera. Take the straight arm back."},
+  {key:"tfl",region:"Thoracolumbar",label:"Flexion",view:"lateral",pts:["hip","sh"],m:"fromVertical",norm:80,tip:"Side-on. Bend forward reaching to the floor, knees straight."},
+  {key:"tex",region:"Thoracolumbar",label:"Extension",view:"lateral",pts:["hip","sh"],m:"fromVertical",norm:25,tip:"Side-on. Lean back, hands on hips."},
+  {key:"tlfL",region:"Thoracolumbar",label:"Lateral flexion L",view:"frontal",pts:["rsh","lsh","rhip","lhip"],m:"midline",norm:35,tip:"Back to camera. Slide left hand down the left thigh."},
+  {key:"tlfR",region:"Thoracolumbar",label:"Lateral flexion R",view:"frontal",pts:["rsh","lsh","rhip","lhip"],m:"midline",norm:35,tip:"Back to camera. Slide right hand down the right thigh."}
+];
+const ROM_BY=Object.fromEntries(ROM.map(t=>[t.key,t]));
+const romName=t=>`${t.region} ${t.label.replace(/^\w/,c=>c.toLowerCase())}`;
+
+/* Screening guide thresholds (degrees): [green below, amber below, otherwise red] */
+const TH={tilt:[1.5,3],shift:[1.5,3],fhead:[10,20],ear:[4,8],seg:[3,6]};
+const stat=(v,t)=>{const a=Math.abs(v);return a<t[0]?"ok":a<t[1]?"warn":"bad"};
+const romStat=p=>p>=.9?"ok":p>=.7?"warn":"bad";
+const STAT_WORD={ok:"Within guide",warn:"Mild",bad:"Notable"};
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const deg=r=>r*180/Math.PI;
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+const f1=v=>(Math.round(v*10)/10).toFixed(1);
+const fmtDate=iso=>{try{return new Date(iso).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}catch(e){return iso}};
+const today=()=>new Date().toISOString().slice(0,10);
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function css(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}
+function armDelete(btn,fn){btn.addEventListener("click",()=>{if(btn.classList.contains("armed")){fn()}else{btn.classList.add("armed");const o=btn.textContent;btn.textContent="Tap again to delete";setTimeout(()=>{btn.classList.remove("armed");btn.textContent=o},3500)}})}
+
+/* ============================================================
+   Storage — IndexedDB on this device, with in-memory fallback
+   ============================================================ */
+const Store={db:null,mem:{patients:new Map(),screens:new Map(),kv:new Map()},ok:false,
+  async open(){
+    try{
+      this.db=await new Promise((res,rej)=>{const r=indexedDB.open("plumbline",1);
+        r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore("patients",{keyPath:"id"});const s=d.createObjectStore("screens",{keyPath:"id"});s.createIndex("patient","patientId");d.createObjectStore("kv")};
+        r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+      this.ok=true;
+    }catch(e){this.ok=false}
+  },
+  tx(store,mode,fn){return new Promise((res,rej)=>{const t=this.db.transaction(store,mode);const s=t.objectStore(store);const r=fn(s);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})},
+  async all(store){if(!this.ok)return[...this.mem[store].values()];try{return await this.tx(store,"readonly",s=>s.getAll())||[]}catch(e){return[]}},
+  async get(store,id){if(!this.ok)return this.mem[store].get(id);try{return await this.tx(store,"readonly",s=>s.get(id))}catch(e){return undefined}},
+  async put(store,obj,key){if(!this.ok){this.mem[store].set(key??obj.id,obj);return}await this.tx(store,"readwrite",s=>key!==undefined?s.put(obj,key):s.put(obj))},
+  async del(store,id){if(!this.ok){this.mem[store].delete(id);return}await this.tx(store,"readwrite",s=>s.delete(id))}
+};
+let SETTINGS={clinic:"",practitioners:"",hideExample:false};
+async function loadSettings(){try{const s=await Store.get("kv","settings");if(s)SETTINGS={...SETTINGS,...s}}catch(e){}}
+async function saveSettings(){await Store.put("kv",SETTINGS,"settings")}
+async function askPersist(){try{if(navigator.storage&&navigator.storage.persist&&!(await navigator.storage.persisted()))await navigator.storage.persist()}catch(e){}}
+
+/* ============================================================
+   Images
+   ============================================================ */
+const IMG_CACHE=new Map();
+function loadImage(src){if(IMG_CACHE.has(src))return IMG_CACHE.get(src);const p=new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});IMG_CACHE.set(src,p);return p}
+async function fileToDataURL(file){
+  const url=URL.createObjectURL(file);
+  try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("That file isn't an image this browser can open."));i.src=url});
+    const max=1400,sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*sc);c.height=Math.round(img.naturalHeight*sc);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.86);
+  }finally{URL.revokeObjectURL(url)}
+}
+
+/* ============================================================
+   Pose detection (MediaPipe Pose, model files published with this page)
+   ============================================================ */
+const POSE_VER="0.5.1675469404";
+const Pose_={state:"idle",pose:null,pending:null,
+  loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("script"));document.head.appendChild(s)})},
+  async init(){
+    if(this.state==="ready")return true;if(this.state==="failed")return false;
+    if(this._init)return this._init;
+    this._init=(async()=>{try{
+      this.state="loading";
+      await this.loadScript("mp/pose.js");
+      const PC=window.Pose&&(window.Pose.Pose||window.Pose);if(typeof PC!=="function")throw new Error("no pose");
+      const base=new URL("mp/",location.href).href;
+      this.pose=new PC({locateFile:f=>base+f});
+      this.pose.setOptions({modelComplexity:1,smoothLandmarks:false,enableSegmentation:false,minDetectionConfidence:.4,staticImageMode:true});
+      this.pose.onResults(r=>{if(this.pending){this.pending(r);this.pending=null}});
+      await withTimeout(this.pose.initialize(),40000);
+      this.state="ready";return true;
+    }catch(e){console.warn("Pose unavailable",e);this.state="failed";return false}})();
+    return this._init;
+  },
+  async detect(img){
+    if(!(await this.init()))return null;
+    try{const r=await withTimeout(new Promise(res=>{this.pending=res;this.pose.send({image:img})}),30000);
+      const L=r&&r.poseLandmarks;if(!L)return null;
+      const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+      return L.map(p=>({x:p.x*w,y:p.y*h,v:p.visibility??1}));
+    }catch(e){console.warn(e);return null}
+  }
+};
+function withTimeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),ms))])}
+
+/* Default point positions when detection isn't available (fractions of the image) */
+const TPL_Y={eye:.11,ear:.12,nose:.14,sh:.25,el:.38,wr:.5,hip:.52,kn:.72,ank:.92};
+const TPL_D={eye:.03,ear:.045,nose:0,sh:.11,el:.14,wr:.15,hip:.07,kn:.06,ank:.05};
+function baseOf(k){return k.replace(/^[lr]/,"")}
+function template(keys,kind,front,w,h){
+  const P={};
+  for(const k of keys){
+    const b=GENERIC[k]?k:baseOf(k);const y=(TPL_Y[b]??.5)*h;let x=.5*w;
+    if(kind==="frontal"&&!GENERIC[k]&&k!=="nose"){const d=(TPL_D[b]||.05)*w;const isR=k[0]==="r";x+=((isR?-1:1)*(front?1:-1))*d}
+    if(kind==="lateral"&&b==="eye")x+=.04*w;
+    P[k]={x,y};
+  }
+  return P;
+}
+function fromLandmarks(keys,L){
+  const P={};
+  for(const k of keys){
+    if(GENERIC[k]){
+      const [r,l]=GENERIC[k];const pr=L[MP[r]],pl=L[MP[l]];const p=(pr.v>=pl.v)?pr:pl;P[k]={x:p.x,y:p.y};
+    }else{const p=L[MP[k]];P[k]={x:p.x,y:p.y}}
+  }
+  return P;
+}
+function landmarksOk(keys,L){
+  const vis=keys.map(k=>GENERIC[k]?Math.max(L[MP[GENERIC[k][0]]].v,L[MP[GENERIC[k][1]]].v):L[MP[k]].v);
+  return vis.filter(v=>v>.35).length>=Math.ceil(keys.length*.6);
+}
+
+/* Height markers (top of head, floor) used to turn pixels into millimetres */
+function calibPoints(viewKey,P,W,H){
+  const V=VIEWS[viewKey];let head,sh,a,k;
+  if(V.kind==="frontal"){head=V.front?mid(P.reye,P.leye):mid(P.rear,P.lear);sh=mid(P.rsh,P.lsh);a=mid(P.rank,P.lank);k=mid(P.rkn,P.lkn)}
+  else{const s=V.facing===1?"r":"l";head=P[s+"ear"];sh=P[s+"sh"];a=P[s+"ank"];k=P[s+"kn"]}
+  return{top:{x:head.x,y:Math.max(0,head.y-.55*(sh.y-head.y))},floor:{x:a.x,y:Math.min(H,a.y+.15*(a.y-k.y))}};
+}
+function mmScale(P,hcm){const h=parseFloat(hcm);if(!h||!P||!P.top||!P.floor)return 0;const px=P.floor.y-P.top.y;return px>20?h*10/px:0}
+
+/* ============================================================
+   Measurements
+   ============================================================ */
+function sideWord(s){return s==="R"?"right":"left"}
+function postureMetrics(viewKey,d,hcm){
+  const V=VIEWS[viewKey],P=d&&d.points;if(!P)return[];
+  const out=[];const k_=mmScale(P,hcm);const mm=v=>Math.round(Math.abs(v)*k_);
+  if(V.kind==="frontal"){
+    const front=V.front;
+    const dir=dx=>Math.abs(dx)<.5?"":((dx>0)===front?"L":"R");
+    const plumb=mid(P.rank,P.lank);
+    const tilt=(r,l)=>{const a=deg(Math.atan2(Math.abs(r.y-l.y),Math.abs(r.x-l.x)));return{a,low:r.y>l.y?"R":"L",mm:mm(r.y-l.y)}};
+    const shift=p=>{const dx=p.x-plumb.x;return{a:deg(Math.atan2(Math.abs(dx),plumb.y-p.y)),d:dir(dx),mm:mm(dx)}};
+    const head=front?{r:P.reye,l:P.leye,c:P.nose}:{r:P.rear,l:P.lear,c:mid(P.rear,P.lear)};
+    const T=(key,label,r,l)=>{const t=tilt(r,l);out.push({key,label,value:t.a,mm:k_?t.mm:null,text:t.a<.3?"level":k_?`${f1(t.a)}° · ${sideWord(t.low)} ${t.mm} mm low`:`${f1(t.a)}° ${sideWord(t.low)} low`,status:stat(t.a,TH.tilt)})};
+    const S=(key,label,p)=>{const s=shift(p);out.push({key,label,value:s.a,mm:k_?s.mm:null,text:s.a<.3||!s.d?"centred":k_?`${f1(s.a)}° · ${s.mm} mm to ${sideWord(s.d)}`:`${f1(s.a)}° to ${sideWord(s.d)}`,status:stat(s.a,TH.shift)})};
+    T("headTilt","Head tilt",head.r,head.l); S("headShift","Head shift",head.c);
+    T("shTilt","Shoulder level",P.rsh,P.lsh); S("shShift","Shoulder shift",mid(P.rsh,P.lsh));
+    T("hipTilt","Pelvic level",P.rhip,P.lhip); S("hipShift","Pelvic shift",mid(P.rhip,P.lhip));
+    T("knTilt","Knee level",P.rkn,P.lkn);
+  }else{
+    const s=V.facing===1?"r":"l";const f=d.facing||V.facing;
+    const ear=P[s+"ear"],sh=P[s+"sh"],hip=P[s+"hip"],kn=P[s+"kn"],ank=P[s+"ank"];
+    const sgn=(p,base)=>deg(Math.atan2((p.x-base.x)*f,base.y-p.y));
+    const off=(p,base)=>mm((p.x-base.x));
+    const word=(v,o)=>Math.abs(v)<.3?"on line":k_?`${f1(Math.abs(v))}° · ${o} mm ${v>0?"forward":"back"}`:`${f1(Math.abs(v))}° ${v>0?"forward":"back"}`;
+    const fh=sgn(ear,sh);
+    out.push({key:"fwdHead",label:"Forward head (ear to shoulder)",value:fh,mm:k_?off(ear,sh):null,text:word(fh,off(ear,sh)),status:stat(Math.max(0,fh),TH.fhead)});
+    const e=sgn(ear,ank);out.push({key:"earPl",label:"Ear vs plumb line",value:e,mm:k_?off(ear,ank):null,text:word(e,off(ear,ank)),status:stat(e,TH.ear)});
+    const a=sgn(sh,ank);out.push({key:"shPl",label:"Shoulder vs plumb line",value:a,mm:k_?off(sh,ank):null,text:word(a,off(sh,ank)),status:stat(a,TH.seg)});
+    const h=sgn(hip,ank);out.push({key:"hipPl",label:"Hip vs plumb line",value:h,mm:k_?off(hip,ank):null,text:word(h,off(hip,ank)),status:stat(h,TH.seg)});
+    const k=sgn(kn,ank);out.push({key:"knPl",label:"Knee vs plumb line",value:k,mm:k_?off(kn,ank):null,text:word(k,off(kn,ank)),status:stat(k,TH.seg)});
+  }
+  return out;
+}
+function romValue(test,d){
+  const P=d&&d.points;if(!P)return null;
+  let v=0;
+  if(test.m==="headPitch"){const ear=P.ear,eye=P.eye;v=deg(Math.atan2(eye.y-ear.y,Math.abs(eye.x-ear.x)))*test.dir;v=Math.max(0,v)}
+  else if(test.m==="tilt"){const [a,b]=test.pts.map(k=>P[k]);v=deg(Math.atan2(Math.abs(a.y-b.y),Math.abs(a.x-b.x)))}
+  else if(test.m==="angle3"){const [a,o,b]=test.pts.map(k=>P[k]);const v1={x:a.x-o.x,y:a.y-o.y},v2={x:b.x-o.x,y:b.y-o.y};
+    const c=(v1.x*v2.x+v1.y*v2.y)/(Math.hypot(v1.x,v1.y)*Math.hypot(v2.x,v2.y)||1);v=deg(Math.acos(Math.max(-1,Math.min(1,c))))}
+  else if(test.m==="fromVertical"){const h=P.hip,s=P.sh;v=deg(Math.atan2(Math.abs(s.x-h.x),h.y-s.y))}
+  else if(test.m==="midline"){const s=mid(P.rsh,P.lsh),h=mid(P.rhip,P.lhip);v=deg(Math.atan2(Math.abs(s.x-h.x),h.y-s.y))}
+  const pct=v/test.norm;
+  return{value:v,pct,status:romStat(pct),text:`${Math.round(v)}°`};
+}
+
+/* ============================================================
+   Drawing overlays (shared by the editor, comparisons and reports)
+   ============================================================ */
+function palette(forPrint){
+  if(forPrint)return{plumb:"#D2461E",ok:"#2C8A4B",warn:"#B87D00",bad:"#C23A2E",pt:"#0D6680",ptIn:"#FFFFFF",grid:"rgba(255,255,255,.35)",text:"#13212A",halo:"rgba(255,255,255,.85)"};
+  return{plumb:css("--plumb"),ok:css("--ok"),warn:css("--warn"),bad:css("--bad"),pt:css("--accent"),ptIn:"#FFFFFF",grid:"rgba(255,255,255,.3)",text:"#13212A",halo:"rgba(255,255,255,.85)"};
+}
+function drawOverlay(ctx,item,d,sc,pal,opt={}){
+  const P=d.points;if(!P)return;
+  const L=(a,b,col,w=2.5,dash)=>{ctx.save();ctx.strokeStyle=col;ctx.lineWidth=w;if(dash)ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(a.x*sc,a.y*sc);ctx.lineTo(b.x*sc,b.y*sc);ctx.stroke();ctx.restore()};
+  const H=ctx.canvas.height,W=ctx.canvas.width;
+  const lw=Math.max(1.5,W/400);
+  if(opt.grid){ctx.save();ctx.strokeStyle=pal.grid;ctx.lineWidth=1;const step=W/12;for(let x=step;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=step;y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}ctx.restore()}
+  const colOf=s=>pal[s]||pal.pt;
+  if(item.type==="posture"){
+    const V=VIEWS[item.key],M=Object.fromEntries(postureMetrics(item.key,d).map(m=>[m.key,m]));
+    if(V.kind==="frontal"){
+      const pl=mid(P.rank,P.lank);
+      L({x:pl.x,y:0},{x:pl.x,y:H/sc},pal.plumb,lw,[10,7]);
+      const pairs=V.front?[["reye","leye","headTilt"],["rsh","lsh","shTilt"],["rhip","lhip","hipTilt"],["rkn","lkn","knTilt"],["rank","lank",null]]:[["rear","lear","headTilt"],["rsh","lsh","shTilt"],["rhip","lhip","hipTilt"],["rkn","lkn","knTilt"],["rank","lank",null]];
+      for(const [a,b,k] of pairs){const col=k?colOf(M[k].status):pal.pt;
+        // horizontal reference through the higher point
+        const hy=Math.min(P[a].y,P[b].y);L({x:P[a].x-20/sc,y:hy},{x:P[b].x+20/sc,y:hy},"rgba(255,255,255,.55)",1,[4,4]);
+        L(P[a],P[b],col,lw*1.4)}
+      const c=V.front?P.nose:mid(P.rear,P.lear);L(c,mid(P.rsh,P.lsh),"rgba(255,255,255,.7)",lw*.8);
+      L(mid(P.rsh,P.lsh),mid(P.rhip,P.lhip),"rgba(255,255,255,.7)",lw*.8);
+    }else{
+      const s=V.facing===1?"r":"l";const ank=P[s+"ank"];
+      L({x:ank.x,y:0},{x:ank.x,y:H/sc},pal.plumb,lw,[10,7]);
+      const chain=[s+"ear",s+"sh",s+"hip",s+"kn",s+"ank"];const keys=["fwdHead","shPl","hipPl","knPl"];
+      for(let i=0;i<chain.length-1;i++){const m=M[keys[i]];L(P[chain[i]],P[chain[i+1]],colOf(m?m.status:"ok"),lw*1.4)}
+    }
+  }else{
+    const t=ROM_BY[item.key],r=romValue(t,d),col=colOf(r.status);
+    const arc=(o,a1,a2,rad)=>{ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.arc(o.x*sc,o.y*sc,rad,a1,a2,false);ctx.stroke();ctx.restore()};
+    const ang=(o,p)=>Math.atan2(p.y-o.y,p.x-o.x);
+    const shortArc=(o,p1,p2,rad)=>{let a1=ang(o,p1),a2=ang(o,p2);let d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;if(d<0){const tmp=a1;a1=a2;a2=tmp;d=-d}arc(o,a1,a1+d,rad)};
+    if(t.m==="angle3"){const [a,o,b]=t.pts.map(k=>P[k]);L(o,a,col,lw*1.4);L(o,b,col,lw*1.4);shortArc(o,a,b,40*sc/sc*Math.max(1,W/700));labelAt(o,r.text)}
+    else if(t.m==="headPitch"){const ear=P.ear,eye=P.eye;const fwd=eye.x>=ear.x?1:-1;const ref={x:ear.x+fwd*Math.hypot(eye.x-ear.x,eye.y-ear.y),y:ear.y};
+      L(ear,ref,pal.plumb,lw,[8,6]);L(ear,eye,col,lw*1.4);shortArc(ear,ref,eye,46*Math.max(1,W/700));labelAt(ear,r.text)}
+    else if(t.m==="tilt"){const [a,b]=t.pts.map(k=>P[k]);const hy=a.y<b.y?a:b;const other=hy===a?b:a;L(hy,{x:other.x,y:hy.y},pal.plumb,lw,[8,6]);L(a,b,col,lw*1.4);labelAt(mid(a,b),r.text)}
+    else if(t.m==="fromVertical"||t.m==="midline"){const h=t.m==="midline"?mid(P.rhip,P.lhip):P.hip,s=t.m==="midline"?mid(P.rsh,P.lsh):P.sh;
+      const len=Math.hypot(s.x-h.x,s.y-h.y);L(h,{x:h.x,y:h.y-len},pal.plumb,lw,[8,6]);L(h,s,col,lw*1.4);
+      if(t.m==="midline"){L(P.rsh,P.lsh,"rgba(255,255,255,.7)",lw);L(P.rhip,P.lhip,"rgba(255,255,255,.7)",lw)}
+      shortArc(h,{x:h.x,y:h.y-len},s,60*Math.max(1,W/700));labelAt(h,r.text)}
+  }
+  function labelAt(p,txt){const fs=Math.max(15,W/30);ctx.save();ctx.font=`600 ${fs}px "JetBrains Mono", ui-monospace, monospace`;
+    const x=p.x*sc+fs*.9,y=p.y*sc-fs*.8;const w=ctx.measureText(txt).width;ctx.fillStyle=pal.halo;ctx.fillRect(x-6,y-fs,w+12,fs*1.35);ctx.fillStyle=pal.text;ctx.fillText(txt,x,y);ctx.restore()}
+  // points
+  const R=Math.max(6,W/110);
+  for(const k of Object.keys(P)){const p=P[k];const active=opt.active===k;
+    if(k==="top"||k==="floor"){const s=Math.max(60,W/8);ctx.save();ctx.strokeStyle=pal.plumb;ctx.lineWidth=Math.max(2,W/300);ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(p.x*sc-s,p.y*sc);ctx.lineTo(p.x*sc+s,p.y*sc);ctx.stroke();ctx.setLineDash([]);
+      const q=active?R*1.5:R*1.1;ctx.beginPath();ctx.moveTo(p.x*sc,p.y*sc-q);ctx.lineTo(p.x*sc+q,p.y*sc);ctx.lineTo(p.x*sc,p.y*sc+q);ctx.lineTo(p.x*sc-q,p.y*sc);ctx.closePath();ctx.fillStyle=pal.ptIn;ctx.fill();ctx.lineWidth=3;ctx.stroke();ctx.restore();
+      if(opt.labels){const fs=Math.max(12,W/55);ctx.save();ctx.font=`600 ${fs}px Figtree, system-ui, sans-serif`;const t=PT_LABEL[k];const w=ctx.measureText(t).width;const x=p.x*sc+R+8,y=p.y*sc-6;ctx.fillStyle=pal.halo;ctx.fillRect(x-3,y-fs,w+6,fs*1.3);ctx.fillStyle=pal.text;ctx.fillText(t,x,y);ctx.restore()}
+      continue}
+    ctx.save();ctx.beginPath();ctx.arc(p.x*sc,p.y*sc,active?R*1.6:R,0,Math.PI*2);ctx.fillStyle=pal.ptIn;ctx.fill();ctx.lineWidth=active?4:3;ctx.strokeStyle=pal.pt;ctx.stroke();ctx.restore();
+    if(opt.labels){const fs=Math.max(12,W/55);ctx.save();ctx.font=`600 ${fs}px Figtree, system-ui, sans-serif`;const t=PT_LABEL[k]||k;const w=ctx.measureText(t).width;
+      const x=p.x*sc+R+5,y=p.y*sc+fs*.35;ctx.fillStyle=pal.halo;ctx.fillRect(x-3,y-fs,w+6,fs*1.3);ctx.fillStyle=pal.text;ctx.fillText(t,x,y);ctx.restore()}
+  }
+}
+async function renderAnnotated(item,d,maxW,maxH,forPrint=true){
+  const img=await loadImage(d.img);
+  const sc=Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight);
+  const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*sc);c.height=Math.round(img.naturalHeight*sc);
+  const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);drawOverlay(ctx,item,d,sc,palette(forPrint),{grid:false});return c;
+}
+
+/* ============================================================
+   Photo editor (one posture view or one ROM test)
+   ============================================================ */
+function itemDef(item){if(item.type==="posture"){const V=VIEWS[item.key];return{pts:V.pts,kind:V.kind,front:V.front??true,title:V.label,tip:V.tip}}
+  const t=ROM_BY[item.key];return{pts:t.pts,kind:t.view,front:t.key.startsWith("tlf")?false:true,title:`${romName(t)}`,tip:t.tip}}
+function mountEditor(host,item,getData,setData,readonly){
+  const def=itemDef(item);
+  host.innerHTML=`
+   <div class="editor">
+     <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+       <div class="stage" id="stage"></div>
+       <div class="status-line" id="edStatus"></div>
+       ${readonly?"":`<div class="btns">
+         <label class="btn primary sm"><input type="file" accept="image/*" id="edFile">${getData()?.img?"Retake photo":"Take or choose photo"}</label>
+         <button class="btn sm" id="edDetect" ${getData()?.img?"":"disabled"}>Find landmarks again</button>
+         ${def.kind==="frontal"?`<button class="btn sm" id="edSwap" ${getData()?.img?"":"disabled"}>Swap left / right</button>`:""}
+         ${item.type==="posture"&&def.kind==="lateral"?`<button class="btn sm" id="edFace" ${getData()?.img?"":"disabled"}>Flip facing</button>`:""}
+         <button class="btn sm ghost" id="edLabels" aria-pressed="false">Show point names</button>
+       </div>`}
+     </div>
+     <div style="display:flex;flex-direction:column;gap:12px;min-width:0" id="edSide"></div>
+   </div>`;
+  const stage=host.querySelector("#stage"),side=host.querySelector("#edSide"),status=host.querySelector("#edStatus");
+  let canvas=null,ctx=null,img=null,sc=1,drag=null,labels=false,loupe=null;
+  function setStatus(t,warn){status.textContent=t||"";status.classList.toggle("warnmsg",!!warn)}
+  async function draw(){
+    const d=getData();
+    if(!d||!d.img){stage.innerHTML=`<div class="placeholder"><h3>${esc(def.title)}</h3><p class="small">${esc(def.tip)}</p>
+       <ul class="tips" style="text-align:left"><li>iPad level, at the patient's mid-torso height, about 2.5 m away.</li><li>Whole body in frame, plain wall behind, fitted clothing.</li><li>Points are placed automatically; drag any that are off.</li></ul></div>`;canvas=null;renderSide();return}
+    img=await loadImage(d.img);
+    if(!canvas){stage.innerHTML="";canvas=document.createElement("canvas");stage.appendChild(canvas);ctx=canvas.getContext("2d");bind()}
+    const maxW=stage.clientWidth||600,maxH=Math.max(360,Math.min(window.innerHeight*.72,900));
+    const dispSc=Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight);
+    const dpr=window.devicePixelRatio||1;
+    canvas.style.width=Math.round(img.naturalWidth*dispSc)+"px";canvas.style.height=Math.round(img.naturalHeight*dispSc)+"px";
+    canvas.width=Math.round(img.naturalWidth*dispSc*dpr);canvas.height=Math.round(img.naturalHeight*dispSc*dpr);
+    sc=dispSc*dpr;
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    drawOverlay(ctx,item,d,sc,palette(false),{grid:true,labels,active:drag&&drag.key});
+    if(loupe&&drag){const p=d.points[drag.key];const zr=2.6,r=70*dpr;const cx=Math.min(Math.max(p.x*sc,r),canvas.width-r),cy=Math.max(p.y*sc-r*1.6,r);
+      ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();ctx.drawImage(img,p.x-r/(sc*zr),p.y-r/(sc*zr),2*r/(sc*zr),2*r/(sc*zr),cx-r,cy-r,2*r,2*r);
+      ctx.strokeStyle=css("--plumb");ctx.lineWidth=1.5*dpr;ctx.beginPath();ctx.moveTo(cx-r,cy);ctx.lineTo(cx+r,cy);ctx.moveTo(cx,cy-r);ctx.lineTo(cx,cy+r);ctx.stroke();ctx.restore();
+      ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=3*dpr;ctx.strokeStyle="#fff";ctx.stroke();ctx.restore()}
+    renderSide();
+  }
+  function renderSide(){
+    const d=getData();
+    if(item.type==="posture"){
+      const ms=d&&d.img?postureMetrics(item.key,d,item.h&&item.h()):[];
+      side.innerHTML=`<div class="panel"><div class="head"><div><div class="label">${esc(def.kind==="frontal"?"Frontal plane":"Sagittal plane")}</div><h2>${esc(def.title)}</h2></div></div>
+        ${ms.length?`<table><thead><tr><th>Measure</th><th>Reading</th><th></th></tr></thead><tbody>${ms.map(m=>`<tr><td>${esc(m.label)}</td><td class="v">${esc(m.text)}</td><td><span class="pill ${m.status}">${STAT_WORD[m.status]}</span></td></tr>`).join("")}</tbody></table>`
+        :`<p class="muted small">Readings appear here once there's a photo.</p>`}
+        <p class="small muted">Angles are measured from the plumb line through the ${def.kind==="frontal"?"midpoint of the ankles":"ankle"}. ${item.h&&item.h()?"Millimetres use the patient's height between the head-top and floor markers (the dashed lines); drag them to the top of the head and the floor.":"Enter the patient's height above to add millimetre readings."} Guide colours are screening thresholds, not diagnoses.</p></div>`;
+    }else{
+      const t=ROM_BY[item.key],r=d&&d.img?romValue(t,d):null;
+      side.innerHTML=`<div class="panel"><div><div class="label">${esc(t.region)} range of motion</div><h2>${esc(t.label)}</h2></div>
+        ${r?`<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><span class="num" style="font-size:2.6rem;font-weight:600">${Math.round(r.value)}°</span>
+          <span class="muted">of ${t.norm}° typical · <span class="num">${Math.round(r.pct*100)}%</span></span><span class="pill ${r.status}">${STAT_WORD[r.status]}</span></div>`
+          :`<p class="muted small">Take the photo at end range. The angle appears here.</p>`}
+        <p class="small">${esc(t.tip)}</p>
+        <p class="small muted">${t.m==="headPitch"?"Measured as the ear-to-eye line against horizontal, assuming that line is near level in neutral.":t.m==="angle3"?"Angle at the shoulder between the trunk line (to hip) and the arm (to wrist).":t.m==="tilt"?"Tilt of the line between the eyes against horizontal.":"Trunk line against vertical."} Photo-based estimates; confirm with a goniometer or inclinometer where it matters.</p></div>`;
+    }
+  }
+  async function placePoints(fresh){
+    const d=getData();if(!d||!d.img)return;const im=await loadImage(d.img);
+    setStatus("Finding landmarks…");
+    const L=await Pose_.detect(im);
+    const W=im.naturalWidth,H=im.naturalHeight;
+    let P,auto=false;
+    if(L&&landmarksOk(def.pts,L)){P=fromLandmarks(def.pts,L);auto=true}
+    else P=template(def.pts,def.kind,def.front,W,H);
+    if(item.type==="posture")Object.assign(P,calibPoints(item.key,P,W,H));
+    const nd={...d,points:P,auto};
+    if(item.type==="posture"&&def.kind==="lateral"){let f=VIEWS[item.key].facing;if(L&&L[0]&&auto){const s=VIEWS[item.key].facing===1?"rear":"lear";f=L[0].x>L[MP[s]].x?1:-1}nd.facing=f}
+    setData(nd);
+    if(auto)setStatus("Landmarks placed automatically. Drag any point to adjust.");
+    else setStatus(Pose_.state==="failed"?"Automatic detection isn't available on this device. Drag the points into place.":"Couldn't find the person clearly. Drag the points into place.",true);
+    draw();
+  }
+  function bind(){
+    const toImg=e=>{const r=canvas.getBoundingClientRect();const dpr=window.devicePixelRatio||1;return{x:(e.clientX-r.left)*dpr/sc,y:(e.clientY-r.top)*dpr/sc}};
+    canvas.addEventListener("pointerdown",e=>{if(readonly)return;const d=getData();if(!d||!d.points)return;const p=toImg(e);
+      let best=null,bd=1e9;for(const k of Object.keys(d.points)){const q=d.points[k];const dd=Math.hypot(q.x-p.x,q.y-p.y)*sc/(window.devicePixelRatio||1);if(dd<bd){bd=dd;best=k}}
+      if(best&&bd<38){drag={key:best,ox:d.points[best].x-p.x,oy:d.points[best].y-p.y};loupe=e.pointerType!=="mouse";canvas.setPointerCapture(e.pointerId);e.preventDefault();draw()}});
+    canvas.addEventListener("pointermove",e=>{if(!drag)return;const d=getData();const p=toImg(e);
+      d.points[drag.key]={x:Math.max(0,Math.min(img.naturalWidth,p.x+drag.ox)),y:Math.max(0,Math.min(img.naturalHeight,p.y+drag.oy))};draw()});
+    const end=()=>{if(!drag)return;drag=null;loupe=null;setData({...getData(),auto:false});draw()};
+    canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);
+  }
+  if(!readonly){
+    const fi=host.querySelector("#edFile");
+    fi.addEventListener("change",async()=>{const f=fi.files&&fi.files[0];if(!f)return;
+      try{setStatus("Preparing photo…");const url=await fileToDataURL(f);setData({img:url,points:null});canvas=null;
+        host.querySelectorAll("#edDetect,#edSwap,#edFace").forEach(b=>b.disabled=false);
+        const lbl=fi.closest("label");lbl.lastChild.textContent="Retake photo";await placePoints(true)}
+      catch(e){setStatus(e.message||"Couldn't open that photo.",true)}fi.value=""});
+    host.querySelector("#edDetect").addEventListener("click",()=>placePoints(false));
+    const sw=host.querySelector("#edSwap");if(sw)sw.addEventListener("click",()=>{const d=getData();const P={};for(const k of Object.keys(d.points)){const o=k[0]==="r"?"l"+k.slice(1):k[0]==="l"?"r"+k.slice(1):k;P[o in d.points?o:k]=d.points[k]}setData({...d,points:P});draw();toast("Left and right swapped")});
+    const fc=host.querySelector("#edFace");if(fc)fc.addEventListener("click",()=>{const d=getData();setData({...d,facing:-(d.facing||VIEWS[item.key].facing)});draw();toast("Facing direction flipped")});
+    const lb=host.querySelector("#edLabels");lb.addEventListener("click",()=>{labels=!labels;lb.setAttribute("aria-pressed",labels);lb.textContent=labels?"Hide point names":"Show point names";draw()});
+  }
+  const ro=new ResizeObserver(()=>{if(canvas)draw()});ro.observe(stage);
+  {const d=getData();if(item.type==="posture"&&d&&d.points&&!d.points.top&&!readonly){loadImage(d.img).then(im=>{Object.assign(d.points,calibPoints(item.key,d.points,im.naturalWidth,im.naturalHeight));setData({...d});draw()})}}
+  draw();
+  if(getData()&&getData().img)setStatus(getData().auto?"Landmarks placed automatically. Drag any point to adjust.":"Drag any point to adjust.");
+  return{redraw:draw,destroy:()=>ro.disconnect()};
+}
+
+/* ============================================================
+   Example patient (drawn figures, never stored)
+   ============================================================ */
+function figure(kind,o){
+  const W=600,H=1000,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,"#DCE5E8");g.addColorStop(1,"#C5D2D6");x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.fillStyle="#AEBEC3";x.fillRect(0,950,W,50);
+  const skin="#C99A7C",cloth="#2F4A57",short="#40525C";
+  const limb=(pts,w,col)=>{x.save();x.strokeStyle=col;x.lineWidth=w;x.lineCap="round";x.lineJoin="round";x.beginPath();x.moveTo(pts[0].x,pts[0].y);for(const p of pts.slice(1))x.lineTo(p.x,p.y);x.stroke();x.restore()};
+  const P={};
+  if(kind==="front"){
+    const cx=300;P.rank={x:cx-45,y:930};P.lank={x:cx+45,y:930};P.rkn={x:cx-50,y:700+(o.knee||0)};P.lkn={x:cx+50,y:700};
+    P.rhip={x:cx-68,y:510+o.hip};P.lhip={x:cx+68,y:510};P.rsh={x:cx-105+o.shift,y:262+o.sh};P.lsh={x:cx+105+o.shift,y:262};
+    const hx=cx+o.head,hy=128;const t=o.tilt*Math.PI/180;P.reye={x:hx-26*Math.cos(t),y:hy+26*Math.sin(t)};P.leye={x:hx+26*Math.cos(t),y:hy-26*Math.sin(t)};P.nose={x:hx+4*Math.sin(t),y:hy+24};
+    limb([P.rank,P.rkn,P.rhip],44,skin);limb([P.lank,P.lkn,P.lhip],44,skin);
+    x.fillStyle=short;x.beginPath();x.moveTo(P.rhip.x-16,P.rhip.y-20);x.lineTo(P.lhip.x+16,P.lhip.y-20);x.lineTo(P.lhip.x+20,P.lhip.y+90);x.lineTo(cx+6,P.lhip.y+90);x.lineTo(cx,P.lhip.y+40);x.lineTo(cx-6,P.rhip.y+90);x.lineTo(P.rhip.x-20,P.rhip.y+90);x.fill();
+    limb([P.rsh,{x:P.rsh.x-30,y:400},{x:P.rsh.x-38,y:520}],30,skin);limb([P.lsh,{x:P.lsh.x+30,y:400},{x:P.lsh.x+38,y:520}],30,skin);
+    x.fillStyle=cloth;x.beginPath();x.moveTo(P.rsh.x-14,P.rsh.y-8);x.lineTo(P.lsh.x+14,P.lsh.y-8);x.lineTo(P.lhip.x+12,P.lhip.y-10);x.lineTo(P.rhip.x-12,P.rhip.y-10);x.closePath();x.fill();
+    limb([{x:hx,y:hy+40},{x:cx+o.shift,y:250}],46,skin);
+    x.fillStyle=skin;x.beginPath();x.ellipse(hx,hy,50,62,-t,0,Math.PI*2);x.fill();
+    x.fillStyle="#3B2A20";x.beginPath();x.ellipse(hx,hy-34,52,32,-t,Math.PI,0);x.fill();
+    for(const e of [P.reye,P.leye]){x.fillStyle="#2B1D16";x.beginPath();x.arc(e.x,e.y,5,0,7);x.fill()}
+    P.top={x:hx,y:hy-62};P.floor={x:cx,y:950};
+  }else{
+    const ax=300;P.rank={x:ax,y:930};P.rkn={x:ax+6,y:700};P.rhip={x:ax+o.hipF,y:512};P.rsh={x:ax+o.shF,y:262};P.rear={x:ax+o.earF,y:135};
+    limb([{x:ax+40,y:940},{x:ax-20,y:940}],22,"#2B1D16");
+    limb([P.rank,P.rkn,P.rhip],48,skin);
+    x.fillStyle=short;x.beginPath();x.ellipse(P.rhip.x,P.rhip.y+20,62,80,0,0,7);x.fill();
+    limb([P.rhip,P.rsh],96,cloth);
+    limb([P.rsh,{x:P.rsh.x+6,y:400},{x:P.rsh.x+14,y:520}],30,skin);
+    limb([{x:P.rsh.x-6,y:250},{x:P.rear.x+4,y:170}],44,skin);
+    x.fillStyle=skin;x.beginPath();x.ellipse(P.rear.x+14,P.rear.y-6,58,62,0,0,7);x.fill();
+    x.fillStyle="#3B2A20";x.beginPath();x.ellipse(P.rear.x-6,P.rear.y-30,56,40,0,Math.PI*.9,Math.PI*2.05);x.fill();
+    x.fillStyle="#B07F63";x.beginPath();x.ellipse(P.rear.x,P.rear.y,9,14,0,0,7);x.fill();
+    P.top={x:P.rear.x+14,y:P.rear.y-68};P.floor={x:ax,y:950};
+  }
+  x.fillStyle="rgba(19,33,42,.55)";x.font="700 26px Figtree, sans-serif";x.fillText("EXAMPLE",20,40);
+  return{img:c.toDataURL("image/jpeg",.85),points:P};
+}
+function romFigure(angle){
+  const W=600,H=1000,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,"#DCE5E8");g.addColorStop(1,"#C5D2D6");x.fillStyle=g;x.fillRect(0,0,W,H);x.fillStyle="#AEBEC3";x.fillRect(0,950,W,50);
+  const skin="#C99A7C",cloth="#2F4A57";const limb=(pts,w,col)=>{x.save();x.strokeStyle=col;x.lineWidth=w;x.lineCap="round";x.beginPath();x.moveTo(pts[0].x,pts[0].y);for(const p of pts.slice(1))x.lineTo(p.x,p.y);x.stroke();x.restore()};
+  const hip={x:280,y:560},sh={x:284,y:320};const a=angle*Math.PI/180;const wr={x:sh.x+250*Math.sin(a),y:sh.y+250*Math.cos(a)};
+  limb([{x:282,y:930},{x:286,y:740},hip],48,skin);limb([hip,sh],96,cloth);limb([{x:sh.x-4,y:300},{x:298,y:230}],44,skin);
+  x.fillStyle=skin;x.beginPath();x.ellipse(310,190,58,62,0,0,7);x.fill();x.fillStyle="#3B2A20";x.beginPath();x.ellipse(290,165,56,40,0,Math.PI*.9,Math.PI*2.05);x.fill();
+  limb([sh,wr],30,skin);
+  x.fillStyle="rgba(19,33,42,.55)";x.font="700 26px Figtree, sans-serif";x.fillText("EXAMPLE",20,40);
+  return{img:c.toDataURL("image/jpeg",.85),points:{rhip:hip,rsh:sh,rwr:wr}};
+}
+let EXAMPLE=null;
+function buildExample(){
+  const pid="example";
+  const s1={id:"ex1",patientId:pid,example:true,date:"2026-07-14",practitioner:"Example",consent:true,heightCm:175,notes:"Example screening, initial visit.",views:{},rom:{}};
+  const s2={id:"ex2",patientId:pid,example:true,date:"2026-10-06",practitioner:"Example",consent:true,heightCm:175,notes:"Example re-check after 12 weeks.",views:{},rom:{}};
+  s1.views.anterior={...figure("front",{tilt:4,head:10,sh:14,shift:6,hip:7}),auto:true};
+  s1.views.rlat={...figure("side",{earF:62,shF:22,hipF:10}),facing:1,auto:true};
+  s1.rom.sflR={...romFigure(146),auto:true};
+  s2.views.anterior={...figure("front",{tilt:1.5,head:4,sh:5,shift:2,hip:3}),auto:true};
+  s2.views.rlat={...figure("side",{earF:34,shF:10,hipF:6}),facing:1,auto:true};
+  s2.rom.sflR={...romFigure(168),auto:true};
+  EXAMPLE={patient:{id:pid,name:"Sample Patient",dob:"1984-03-22",heightCm:175,notes:"Drawn example to show how the tool works. Hide it in Settings.",example:true,created:"2026-07-14"},screens:[s1,s2]};
+}
+
+/* ============================================================
+   Data access
+   ============================================================ */
+async function patients(){const ps=await Store.all("patients");ps.sort((a,b)=>a.name.localeCompare(b.name));if(!SETTINGS.hideExample&&EXAMPLE)ps.unshift(EXAMPLE.patient);return ps}
+async function getPatient(id){return id==="example"?EXAMPLE.patient:await Store.get("patients",id)}
+async function screensOf(pid){if(pid==="example")return EXAMPLE.screens.slice();const all=await Store.all("screens");return all.filter(s=>s.patientId===pid).sort((a,b)=>a.date.localeCompare(b.date)||(a.created||"").localeCompare(b.created||""))}
+async function getScreen(id){if(id&&id.startsWith("ex"))return EXAMPLE.screens.find(s=>s.id===id);return await Store.get("screens",id)}
+function screenSummary(s){const all=[];for(const k of VIEW_ORDER){const d=s.views&&s.views[k];if(d&&d.points)all.push(...postureMetrics(k,d))}
+  for(const t of ROM){const d=s.rom&&s.rom[t.key];if(d&&d.points)all.push(romValue(t,d))}
+  return{bad:all.filter(m=>m.status==="bad").length,warn:all.filter(m=>m.status==="warn").length,n:all.length}}
+
+/* ============================================================
+   Router
+   ============================================================ */
+let route={name:"home"},history_=[],editorHandle=null;
+function go(name,params={},push=true){if(push)history_.push(route);route={name,...params};render()}
+function back(){route=history_.pop()||{name:"home"};render()}
+$("#backBtn").addEventListener("click",back);
+$("#settingsBtn").addEventListener("click",()=>go("settings"));
+async function render(){
+  if(editorHandle){editorHandle.destroy();editorHandle=null}
+  $("#backBtn").hidden=route.name==="home";
+  $("#settingsBtn").hidden=route.name==="settings";
+  const v=$("#view");
+  try{
+    if(route.name==="home")await renderHome(v);
+    else if(route.name==="patient")await renderPatient(v);
+    else if(route.name==="screen")await renderScreen(v);
+    else if(route.name==="compare")await renderCompare(v);
+    else if(route.name==="settings")await renderSettings(v);
+  }catch(e){console.error(e);v.innerHTML=`<div class="panel"><h2>Something went wrong</h2><p class="muted">${esc(e.message)}</p><div><button class="btn" onclick="location.reload()">Reload</button></div></div>`}
+  window.scrollTo(0,0);
+}
+
+/* ---------- Home ---------- */
+async function renderHome(v){
+  $("#crumb").textContent="";
+  const ps=await patients();
+  const counts={};for(const p of ps){const ss=await screensOf(p.id);counts[p.id]={n:ss.length,last:ss.length?ss[ss.length-1].date:null}}
+  v.innerHTML=`
+   <div class="head"><div><div class="label">${esc(SETTINGS.clinic||"Posture and range of motion screening")}</div><h1>Patients</h1></div>
+     <div class="btns"><button class="btn primary" id="newP">New patient</button></div></div>
+   ${!Store.ok?`<div class="note">This browser isn't allowing storage, so nothing will be kept after you close the page. Turn off Private Browsing to save patients.</div>`:""}
+   <div class="panel" id="newPanel" hidden>
+     <h2>New patient</h2>
+     <form id="newForm" class="fields">
+       <div class="field"><label class="label" for="npName">Name</label><input id="npName" required autocomplete="off"></div>
+       <div class="field"><label class="label" for="npDob">Date of birth</label><input id="npDob" type="date"></div>
+       <div class="field"><label class="label" for="npH">Height (cm)</label><input id="npH" type="number" inputmode="decimal" min="50" max="230" step="0.5"></div>
+       <div class="field" style="grid-column:1/-1"><label class="label" for="npNotes">Notes</label><textarea id="npNotes" placeholder="Presenting complaint, relevant history"></textarea></div>
+       <div class="btns" style="grid-column:1/-1"><button class="btn primary" type="submit">Create patient</button><button class="btn ghost" type="button" id="npCancel">Cancel</button></div>
+     </form>
+   </div>
+   <div class="field"><label class="label" for="search">Find a patient</label><input id="search" type="search" placeholder="Type a name" autocomplete="off"></div>
+   <div class="list" id="plist"></div>
+   <p class="small muted">Patients, photos and results are kept on this device only. Back up from Settings regularly.</p>`;
+  const list=v.querySelector("#plist");
+  const draw=q=>{const f=ps.filter(p=>!q||p.name.toLowerCase().includes(q.toLowerCase()));
+    list.innerHTML=f.length?f.map(p=>`<button class="row" data-id="${esc(p.id)}"><span class="avatar">${esc((p.name.match(/\b\w/g)||["?"]).slice(0,2).join("").toUpperCase())}</span>
+      <span class="main"><span class="name">${esc(p.name)}</span><span class="meta small muted">${p.dob?`Born ${esc(fmtDate(p.dob))} · `:""}${counts[p.id].n} screening${counts[p.id].n===1?"":"s"}${counts[p.id].last?` · last ${esc(fmtDate(counts[p.id].last))}`:""}</span></span>
+      ${p.example?`<span class="badge ex">Example</span>`:""}</button>`).join(""):`<div class="empty">${q?"No patients match that name.":"No patients yet. Tap New patient to add the first one."}</div>`;
+    list.querySelectorAll(".row").forEach(r=>r.addEventListener("click",()=>go("patient",{id:r.dataset.id})))};
+  draw("");
+  v.querySelector("#search").addEventListener("input",e=>draw(e.target.value));
+  const panel=v.querySelector("#newPanel");
+  v.querySelector("#newP").addEventListener("click",()=>{panel.hidden=false;v.querySelector("#npName").focus()});
+  v.querySelector("#npCancel").addEventListener("click",()=>panel.hidden=true);
+  v.querySelector("#newForm").addEventListener("submit",async e=>{e.preventDefault();const name=v.querySelector("#npName").value.trim();if(!name)return;
+    const p={id:uid(),name,dob:v.querySelector("#npDob").value,notes:v.querySelector("#npNotes").value.trim(),heightCm:parseFloat(v.querySelector("#npH").value)||null,created:new Date().toISOString()};
+    await Store.put("patients",p);askPersist();toast("Patient created");go("patient",{id:p.id})});
+}
+
+/* ---------- Patient ---------- */
+async function renderPatient(v){
+  const p=await getPatient(route.id);if(!p){go("home",{},false);return}
+  $("#crumb").textContent=p.name;
+  const ss=await screensOf(p.id);
+  const sel=new Set(ss.length>=2?[ss[0].id,ss[ss.length-1].id]:[]);
+  v.innerHTML=`
+   <div class="head"><div><div class="label">Patient${p.example?" · example":""}</div><h1>${esc(p.name)}</h1>
+     <div class="muted small">${p.dob?`Born ${esc(fmtDate(p.dob))}`:"No date of birth recorded"}${p.heightCm?` · ${esc(p.heightCm)} cm`:""}</div></div>
+     <div class="btns">${p.example?"":`<button class="btn" id="editP">Edit details</button>`}<button class="btn primary" id="newS" ${p.example?"disabled":""}>New screening</button></div></div>
+   ${p.notes?`<div class="note">${esc(p.notes)}</div>`:""}
+   <div class="panel" id="editPanel" hidden>
+     <form id="editForm" class="fields">
+       <div class="field"><label class="label" for="epName">Name</label><input id="epName" value="${esc(p.name)}" required></div>
+       <div class="field"><label class="label" for="epDob">Date of birth</label><input id="epDob" type="date" value="${esc(p.dob||"")}"></div>
+       <div class="field"><label class="label" for="epH">Height (cm)</label><input id="epH" type="number" inputmode="decimal" min="50" max="230" step="0.5" value="${esc(p.heightCm||"")}"></div>
+       <div class="field" style="grid-column:1/-1"><label class="label" for="epNotes">Notes</label><textarea id="epNotes">${esc(p.notes||"")}</textarea></div>
+       <div class="btns" style="grid-column:1/-1"><button class="btn primary" type="submit">Save details</button><button class="btn danger" type="button" id="delP">Delete patient</button></div>
+     </form>
+   </div>
+   <div class="panel" id="startPanel" hidden>
+     <h2>Start a screening</h2>
+     <form id="startForm" class="fields">
+       <div class="field"><label class="label" for="ssDate">Date</label><input id="ssDate" type="date" value="${today()}" required></div>
+       <div class="field"><label class="label" for="ssH">Height today (cm)</label><input id="ssH" type="number" inputmode="decimal" min="50" max="230" step="0.5" value="${esc(p.heightCm||"")}"></div>
+       <div class="field"><label class="label" for="ssPrac">Practitioner</label><input id="ssPrac" list="pracList" value="${esc(lsGet("lastPrac")||"")}" autocomplete="off">
+         <datalist id="pracList">${SETTINGS.practitioners.split(",").map(s=>s.trim()).filter(Boolean).map(s=>`<option value="${esc(s)}">`).join("")}</datalist></div>
+       <label class="check" style="grid-column:1/-1"><input type="checkbox" id="ssConsent" required><span>The patient has consented to posture photos being taken and stored on this device.</span></label>
+       <div class="btns" style="grid-column:1/-1"><button class="btn primary" type="submit">Start</button><button class="btn ghost" type="button" id="ssCancel">Cancel</button></div>
+     </form>
+   </div>
+   <div class="panel">
+     <div class="head"><h2>Screenings</h2>${ss.length>=2?`<button class="btn sm" id="cmpBtn">Compare selected</button>`:""}</div>
+     ${ss.length?`<div class="list">${ss.slice().reverse().map(s=>{const sum=screenSummary(s);return `<div class="row" style="cursor:default">
+        ${ss.length>=2?`<input type="checkbox" class="cmpSel" data-id="${esc(s.id)}" ${sel.has(s.id)?"checked":""} aria-label="Select for comparison" style="width:22px;height:22px;accent-color:var(--accent)">`:""}
+        <button class="main" data-open="${esc(s.id)}" style="all:unset;cursor:pointer;flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+          <span class="name">${esc(fmtDate(s.date))}</span>
+          <span class="meta small muted">${esc(s.practitioner||"No practitioner")} · ${Object.keys(s.views||{}).filter(k=>s.views[k]&&s.views[k].points).length} views · ${Object.keys(s.rom||{}).filter(k=>s.rom[k]&&s.rom[k].points).length} ROM tests</span></button>
+        <span class="meta">${sum.bad?`<span class="pill bad">${sum.bad}</span>`:""}${sum.warn?`<span class="pill warn">${sum.warn}</span>`:""}${!sum.bad&&!sum.warn&&sum.n?`<span class="pill ok">All within guide</span>`:""}</span></div>`}).join("")}</div>`
+      :`<div class="empty">No screenings yet. Tap New screening to take the first set of photos.</div>`}
+   </div>
+   ${ss.length>=2?`<div class="panel"><h2>Trend</h2><div class="tscroll">${trendTable(ss)}</div><p class="small muted">Latest six screenings, oldest on the left.</p></div>`:""}`;
+  v.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>go("screen",{id:b.dataset.open})));
+  if(!p.example){
+    const ep=v.querySelector("#editPanel");v.querySelector("#editP").addEventListener("click",()=>ep.hidden=!ep.hidden);
+    v.querySelector("#editForm").addEventListener("submit",async e=>{e.preventDefault();p.name=v.querySelector("#epName").value.trim()||p.name;p.dob=v.querySelector("#epDob").value;p.notes=v.querySelector("#epNotes").value.trim();p.heightCm=parseFloat(v.querySelector("#epH").value)||null;await Store.put("patients",p);toast("Details saved");render()});
+    armDelete(v.querySelector("#delP"),async()=>{for(const s of ss)await Store.del("screens",s.id);await Store.del("patients",p.id);toast("Patient deleted");history_=[];go("home",{},false)});
+    const sp=v.querySelector("#startPanel");v.querySelector("#newS").addEventListener("click",()=>{sp.hidden=false;sp.scrollIntoView({behavior:"smooth",block:"center"})});
+    v.querySelector("#ssCancel").addEventListener("click",()=>sp.hidden=true);
+    v.querySelector("#startForm").addEventListener("submit",async e=>{e.preventDefault();if(!v.querySelector("#ssConsent").checked)return;
+      const prac=v.querySelector("#ssPrac").value.trim();lsSet("lastPrac",prac);
+      const s={id:uid(),patientId:p.id,date:v.querySelector("#ssDate").value||today(),practitioner:prac,consent:true,heightCm:parseFloat(v.querySelector("#ssH").value)||null,views:{},rom:{},notes:"",created:new Date().toISOString()};
+      await Store.put("screens",s);askPersist();go("screen",{id:s.id})});
+  }
+  v.querySelectorAll(".cmpSel").forEach(c=>c.addEventListener("change",()=>{if(c.checked)sel.add(c.dataset.id);else sel.delete(c.dataset.id)}));
+  const cb=v.querySelector("#cmpBtn");if(cb)cb.addEventListener("click",()=>{if(sel.size!==2){toast("Select exactly two screenings");return}
+    const ids=ss.filter(s=>sel.has(s.id)).map(s=>s.id);go("compare",{pid:p.id,a:ids[0],b:ids[1]})});
+}
+function lsGet(k){try{return localStorage.getItem("pl_"+k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem("pl_"+k,v)}catch(e){}}
+function allMetricRows(ss){
+  const rows=[];
+  for(const k of VIEW_ORDER){const keys=new Map();for(const s of ss){const d=s.views&&s.views[k];if(d&&d.points)for(const m of postureMetrics(k,d))keys.set(m.key,m.label)}
+    for(const [mk,label] of keys)rows.push({group:VIEWS[k].label,label,get:s=>{const d=s.views&&s.views[k];if(!d||!d.points)return null;const m=postureMetrics(k,d,s.heightCm).find(x=>x.key===mk);return m?{v:Math.abs(m.value),t:`${f1(Math.abs(m.value))}°${m.mm!=null?` · ${m.mm} mm`:""}`,s:m.status}:null}})}
+  for(const t of ROM){if(ss.some(s=>s.rom&&s.rom[t.key]&&s.rom[t.key].points))rows.push({group:`${t.region} ROM`,label:t.label,rom:true,get:s=>{const d=s.rom&&s.rom[t.key];if(!d||!d.points)return null;const r=romValue(t,d);return{v:r.value,t:`${Math.round(r.value)}°`,s:r.status}}})}
+  return rows;
+}
+function trendTable(ss){
+  const cols=ss.slice(-6);const rows=allMetricRows(cols);let g="";
+  return `<table><thead><tr><th>Measure</th>${cols.map(s=>`<th class="num">${esc(fmtDate(s.date))}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>{
+    const head=r.group!==g?(g=r.group,`<tr><td colspan="${cols.length+1}" class="label" style="padding-top:14px">${esc(r.group)}</td></tr>`):"";
+    return head+`<tr><td>${esc(r.label)}</td>${cols.map(s=>{const c=r.get(s);return `<td class="v">${c?`<span class="dot ${c.s}"></span>${esc(c.t)}`:`<span class="muted">–</span>`}</td>`}).join("")}</tr>`}).join("")}</tbody></table>`;
+}
+
+/* ---------- Screening ---------- */
+async function renderScreen(v){
+  const s=await getScreen(route.id);if(!s){back();return}
+  const p=await getPatient(s.patientId);
+  $("#crumb").textContent=`${p?p.name:""} · ${fmtDate(s.date)}`;
+  const ro=!!s.example;
+  const tab=route.tab||"posture";
+  const vk=route.view||VIEW_ORDER.find(k=>s.views[k]&&s.views[k].img)||"anterior";
+  const rk=route.rom||Object.keys(s.rom||{}).find(k=>s.rom[k]&&s.rom[k].img)||"cfl";
+  let saveT=null;
+  const persist=()=>{if(ro)return;clearTimeout(saveT);saveT=setTimeout(async()=>{s.updated=new Date().toISOString();try{await Store.put("screens",s)}catch(e){toast("Couldn't save. Check storage space.")}},300)};
+  v.innerHTML=`
+   <div class="head"><div><div class="label">Screening${ro?" · example":""}</div><h1>${esc(p?p.name:"")}</h1>
+     <div class="muted small">${esc(fmtDate(s.date))} · ${esc(s.practitioner||"No practitioner")}</div></div>
+     <div class="tabs" role="tablist">
+       <button class="tab" role="tab" data-tab="posture" aria-selected="${tab==="posture"}">Posture</button>
+       <button class="tab" role="tab" data-tab="rom" aria-selected="${tab==="rom"}">Range of motion</button>
+       <button class="tab" role="tab" data-tab="summary" aria-selected="${tab==="summary"}">Summary & report</button>
+     </div></div>
+   <div id="tabBody" style="display:flex;flex-direction:column;gap:16px"></div>`;
+  v.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{route.tab=t.dataset.tab;render()}));
+  const body=v.querySelector("#tabBody");
+  if(tab==="posture"){
+    body.innerHTML=`<div class="btns" style="justify-content:space-between"><div class="field" style="flex-direction:row;align-items:center;gap:10px"><label class="label" for="hCm">Patient height</label><input id="hCm" type="number" inputmode="decimal" min="50" max="230" step="0.5" value="${esc(s.heightCm||"")}" ${ro?"readonly":""} style="width:110px"><span class="muted small">cm, for millimetre readings</span></div></div><div class="chips">${VIEW_ORDER.map(k=>`<button class="chip" data-v="${k}" aria-pressed="${k===vk}"><span class="tick ${s.views[k]&&s.views[k].points?"done":""}"></span>${VIEWS[k].label}</button>`).join("")}</div><div id="ed"></div>`;
+    body.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{route.view=c.dataset.v;render()}));
+    const hIn=body.querySelector("#hCm");if(!ro)hIn.addEventListener("input",()=>{s.heightCm=parseFloat(hIn.value)||null;persist();editorHandle&&editorHandle.redraw()});
+    editorHandle=mountEditor(body.querySelector("#ed"),{type:"posture",key:vk,h:()=>s.heightCm},()=>s.views[vk],d=>{s.views[vk]=d;persist();const t=body.querySelector(`.chip[data-v="${vk}"] .tick`);if(t)t.classList.toggle("done",!!(d&&d.points))},ro);
+  }else if(tab==="rom"){
+    const regions=[...new Set(ROM.map(t=>t.region))];
+    body.innerHTML=`<div class="romgroups">${regions.map(r=>`<div class="romgroup"><div class="label">${esc(r)}</div><div class="romitems">${ROM.filter(t=>t.region===r).map(t=>{const d=s.rom[t.key];const val=d&&d.points?romValue(t,d):null;
+      return `<button class="romitem" data-r="${t.key}" aria-pressed="${t.key===rk}"><span style="font-weight:600">${esc(t.label)}</span><span class="rv">${val?`<span class="dot ${val.status}"></span>${Math.round(val.value)}° / ${t.norm}°`:`<span class="dot none"></span>not measured`}</span></button>`}).join("")}</div></div>`).join("")}</div><div id="ed"></div>`;
+    body.querySelectorAll(".romitem").forEach(c=>c.addEventListener("click",()=>{route.rom=c.dataset.r;render()}));
+    editorHandle=mountEditor(body.querySelector("#ed"),{type:"rom",key:rk},()=>s.rom[rk],d=>{s.rom[rk]=d;persist();const t=ROM_BY[rk];const b=body.querySelector(`.romitem[data-r="${rk}"] .rv`);if(b&&d&&d.points){const val=romValue(t,d);b.innerHTML=`<span class="dot ${val.status}"></span>${Math.round(val.value)}° / ${t.norm}°`}},ro);
+  }else{
+    const views=VIEW_ORDER.filter(k=>s.views[k]&&s.views[k].points);
+    const roms=ROM.filter(t=>s.rom[t.key]&&s.rom[t.key].points);
+    body.innerHTML=`
+      ${!views.length&&!roms.length?`<div class="panel"><p class="muted">Nothing measured yet. Add photos on the Posture or Range of motion tabs.</p></div>`:""}
+      ${views.length?`<div class="panel"><h2>Posture</h2><div class="grid2">${views.map(k=>`<div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+          <div class="label">${VIEWS[k].label}</div><canvas data-thumb="${k}" style="width:100%;max-width:320px;border-radius:8px;border:1px solid var(--line)"></canvas>
+          <table><tbody>${postureMetrics(k,s.views[k],s.heightCm).map(m=>`<tr><td>${esc(m.label)}</td><td class="v">${esc(m.text)}</td><td><span class="dot ${m.status}"></span></td></tr>`).join("")}</tbody></table></div>`).join("")}</div></div>`:""}
+      ${roms.length?`<div class="panel"><h2>Range of motion</h2><div class="tscroll"><table><thead><tr><th>Test</th><th>Measured</th><th>Typical</th><th>%</th><th></th></tr></thead><tbody>
+          ${roms.map(t=>{const r=romValue(t,s.rom[t.key]);return `<tr><td>${esc(romName(t))}</td><td class="v">${Math.round(r.value)}°</td><td class="v">${t.norm}°</td><td class="v">${Math.round(r.pct*100)}%</td><td><span class="pill ${r.status}">${STAT_WORD[r.status]}</span></td></tr>`}).join("")}</tbody></table></div></div>`:""}
+      <div class="panel"><div class="field"><label class="label" for="sNotes">Clinical notes</label><textarea id="sNotes" ${ro?"readonly":""} placeholder="Findings, recommendations, plan">${esc(s.notes||"")}</textarea></div>
+        <div class="btns"><button class="btn primary" id="pdfBtn" ${!views.length&&!roms.length?"disabled":""}>Save PDF report</button>${ro?"":`<button class="btn danger" id="delS">Delete screening</button>`}</div>
+        <div class="status-line" id="pdfStatus"></div></div>`;
+    for(const k of views){const cv=body.querySelector(`[data-thumb="${k}"]`);renderAnnotated({type:"posture",key:k},s.views[k],640,900,false).then(c=>{cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0)})}
+    const n=body.querySelector("#sNotes");if(!ro)n.addEventListener("input",()=>{s.notes=n.value;persist()});
+    body.querySelector("#pdfBtn").addEventListener("click",()=>makeReport([s],p,body.querySelector("#pdfStatus")));
+    if(!ro)armDelete(body.querySelector("#delS"),async()=>{await Store.del("screens",s.id);toast("Screening deleted");back()});
+  }
+}
+
+/* ---------- Compare ---------- */
+async function renderCompare(v){
+  const p=await getPatient(route.pid);const A=await getScreen(route.a),B=await getScreen(route.b);
+  $("#crumb").textContent=`${p.name} · compare`;
+  const items=[...VIEW_ORDER.filter(k=>A.views[k]?.points&&B.views[k]?.points).map(k=>({type:"posture",key:k,label:VIEWS[k].label})),
+    ...ROM.filter(t=>A.rom[t.key]?.points&&B.rom[t.key]?.points).map(t=>({type:"rom",key:t.key,label:romName(t)}))];
+  const cur=items.find(i=>i.key===route.item)||items[0];
+  v.innerHTML=`
+   <div class="head"><div><div class="label">Progress</div><h1>${esc(p.name)}</h1><div class="muted small">${esc(fmtDate(A.date))} compared with ${esc(fmtDate(B.date))}</div></div>
+     <div class="btns"><button class="btn primary" id="pdfBtn">Save progress report</button></div></div>
+   <div class="status-line" id="pdfStatus"></div>
+   ${items.length?`<div class="chips">${items.map(i=>`<button class="chip" data-i="${i.key}" aria-pressed="${i.key===cur.key}">${esc(i.label)}</button>`).join("")}</div>
+   <div class="editor"><div class="compare-grid"><figure><figcaption class="label">${esc(fmtDate(A.date))}</figcaption><canvas id="cA"></canvas></figure><figure><figcaption class="label">${esc(fmtDate(B.date))}</figcaption><canvas id="cB"></canvas></figure></div>
+   <div class="panel" style="min-width:0">${compareTable(cur,A,B)}</div></div>`:`<div class="panel"><p class="muted">These two screenings don't share any measured views or tests yet.</p></div>`}
+   <div class="panel"><h2>All measures</h2><div class="tscroll">${fullCompareTable(A,B)}</div><p class="small muted">Change shows whether the reading moved towards ideal (smaller posture angles, larger range of motion).</p></div>`;
+  v.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{route.item=c.dataset.i;render()}));
+  if(cur){for(const [id,S] of [["cA",A],["cB",B]]){const d=cur.type==="posture"?S.views[cur.key]:S.rom[cur.key];const c=await renderAnnotated(cur,d,600,900,false);const cv=v.querySelector("#"+id);cv.width=c.width;cv.height=c.height;cv.getContext("2d").drawImage(c,0,0)}}
+  v.querySelector("#pdfBtn").addEventListener("click",()=>makeReport([A,B],p,v.querySelector("#pdfStatus")));
+}
+function changeCell(a,b,rom){if(!a||!b)return`<td class="muted">–</td>`;const d=b.v-a.v;if(Math.abs(d)<.5)return`<td class="v muted">no change</td>`;const better=rom?d>0:d<0;return `<td class="v ${better?"up":"down"}">${d>0?"+":"−"}${f1(Math.abs(d))}° ${better?"better":"worse"}</td>`}
+function compareTable(cur,A,B){
+  const rows=allMetricRows([A,B]).filter(r=>cur.type==="posture"?r.group===VIEWS[cur.key].label:r.label===ROM_BY[cur.key].label&&r.group===`${ROM_BY[cur.key].region} ROM`);
+  return `<table><thead><tr><th>Measure</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>${rows.map(r=>{const a=r.get(A),b=r.get(B);return `<tr><td>${esc(r.label)}</td><td class="v">${a?`<span class="dot ${a.s}"></span>${a.t}`:"–"}</td><td class="v">${b?`<span class="dot ${b.s}"></span>${b.t}`:"–"}</td>${changeCell(a,b,r.rom)}</tr>`}).join("")}</tbody></table>`;
+}
+function fullCompareTable(A,B){const rows=allMetricRows([A,B]);let g="";
+  return `<table><thead><tr><th>Measure</th><th>${esc(fmtDate(A.date))}</th><th>${esc(fmtDate(B.date))}</th><th>Change</th></tr></thead><tbody>${rows.map(r=>{const a=r.get(A),b=r.get(B);
+    const head=r.group!==g?(g=r.group,`<tr><td colspan="4" class="label" style="padding-top:14px">${esc(r.group)}</td></tr>`):"";
+    return head+`<tr><td>${esc(r.label)}</td><td class="v">${a?`<span class="dot ${a.s}"></span>${a.t}`:"–"}</td><td class="v">${b?`<span class="dot ${b.s}"></span>${b.t}`:"–"}</td>${changeCell(a,b,r.rom)}</tr>`}).join("")}</tbody></table>`}
+
+/* ---------- Settings ---------- */
+async function renderSettings(v){
+  $("#crumb").textContent="Settings";
+  let est="";try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();est=`${(e.usage/1048576).toFixed(1)} MB used`}}catch(e){}
+  let persisted=null;try{persisted=navigator.storage&&navigator.storage.persisted?await navigator.storage.persisted():null}catch(e){}
+  v.innerHTML=`
+   <div class="head"><div><div class="label">Plumb Line</div><h1>Settings</h1></div></div>
+   <div class="panel"><h2>Clinic</h2>
+     <form id="setForm" class="fields">
+       <div class="field"><label class="label" for="stClinic">Clinic name (shown on reports)</label><input id="stClinic" value="${esc(SETTINGS.clinic)}" placeholder="e.g. your clinic's name"></div>
+       <div class="field"><label class="label" for="stPrac">Practitioners (comma separated)</label><input id="stPrac" value="${esc(SETTINGS.practitioners)}" placeholder="Dr A Smith, Dr B Jones"></div>
+       <label class="check" style="grid-column:1/-1"><input type="checkbox" id="stEx" ${SETTINGS.hideExample?"":"checked"}><span>Show the example patient</span></label>
+       <div class="btns" style="grid-column:1/-1"><button class="btn primary" type="submit">Save settings</button></div>
+     </form></div>
+   <div class="panel"><h2>Back up and restore</h2>
+     <p class="small">Everything is stored in this app on this device${est?` (${esc(est)})`:""}. ${persisted===true?"The browser has agreed to keep it.":"The browser may clear it if the device runs low on space or the page isn't opened for a long time,"} so save a backup file to Files or iCloud Drive regularly.</p>
+     <div class="btns"><button class="btn" id="bkBtn">Save backup file</button><label class="btn"><input type="file" accept=".json,application/json" id="rsFile">Restore from backup</label></div>
+     <div class="status-line" id="bkStatus"></div></div>
+   <div class="panel"><h2>About the measurements</h2>
+     <p class="small muted">Landmarks are found with an on-device pose model and can be dragged. Posture angles are measured against a vertical plumb line through the ankles; range of motion uses the joint angles described on each test, compared with typical adult values. Photo-based readings depend on camera height, distance and patient positioning. Use them as a screening and communication aid, not as a diagnosis.</p>
+     <table><thead><tr><th>Measure</th><th>Within guide</th><th>Mild</th><th>Notable</th></tr></thead><tbody>
+       <tr><td>Level and shift (frontal)</td><td class="v">&lt; 1.5°</td><td class="v">1.5–3°</td><td class="v">≥ 3°</td></tr>
+       <tr><td>Forward head (ear to shoulder)</td><td class="v">&lt; 10°</td><td class="v">10–20°</td><td class="v">≥ 20°</td></tr>
+       <tr><td>Ear vs plumb line</td><td class="v">&lt; 4°</td><td class="v">4–8°</td><td class="v">≥ 8°</td></tr>
+       <tr><td>Shoulder, hip, knee vs plumb line</td><td class="v">&lt; 3°</td><td class="v">3–6°</td><td class="v">≥ 6°</td></tr>
+       <tr><td>Range of motion (% of typical)</td><td class="v">≥ 90%</td><td class="v">70–89%</td><td class="v">&lt; 70%</td></tr>
+     </tbody></table></div>`;
+  v.querySelector("#setForm").addEventListener("submit",async e=>{e.preventDefault();SETTINGS.clinic=v.querySelector("#stClinic").value.trim();SETTINGS.practitioners=v.querySelector("#stPrac").value.trim();SETTINGS.hideExample=!v.querySelector("#stEx").checked;await saveSettings();toast("Settings saved")});
+  const bs=v.querySelector("#bkStatus");
+  v.querySelector("#bkBtn").addEventListener("click",async()=>{
+    const data={app:"plumb-line",version:1,exported:new Date().toISOString(),settings:SETTINGS,patients:await Store.all("patients"),screens:await Store.all("screens")};
+    const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+    const ok=await saveFile(`Plumb Line backup ${today()}.json`,blob,bs);if(ok)bs.textContent=`Backup saved: ${data.patients.length} patients, ${data.screens.length} screenings.`});
+  const rf=v.querySelector("#rsFile");
+  rf.addEventListener("change",async()=>{const f=rf.files&&rf.files[0];if(!f)return;
+    try{const d=JSON.parse(await f.text());if(d.app!=="plumb-line")throw new Error("That file isn't a Plumb Line backup.");
+      for(const p of d.patients||[])await Store.put("patients",p);for(const s of d.screens||[])await Store.put("screens",s);
+      if(d.settings){SETTINGS={...SETTINGS,...d.settings};await saveSettings()}
+      bs.textContent=`Restored ${d.patients.length} patients and ${d.screens.length} screenings.`;toast("Backup restored")}
+    catch(e){bs.textContent=e.message||"Couldn't read that file.";bs.classList.add("warnmsg")}rf.value=""});
+}
+
+/* ============================================================
+   Files out (downloads capability)
+   ============================================================ */
+async function saveFile(name,blob,statusEl){
+  statusEl.classList.remove("warnmsg");
+  const type=name.endsWith(".pdf")?"application/pdf":"application/json";
+  try{
+    const file=new File([blob],name,{type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:name});return true;
+    }
+  }catch(e){if(e&&e.name==="AbortError"){statusEl.textContent="Cancelled.";return false}}
+  try{
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);return true;
+  }catch(e){statusEl.textContent="Couldn't save the file on this device.";statusEl.classList.add("warnmsg");return false}
+}
+
+/* ============================================================
+   PDF reports
+   ============================================================ */
+async function makeReport(screens,p,statusEl){
+  if(!window.jspdf){statusEl.textContent="The PDF tool didn't load. Check the connection and reload.";statusEl.classList.add("warnmsg");return}
+  statusEl.classList.remove("warnmsg");statusEl.textContent="Building report…";
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});
+  const M=14,PW=210,PH=297,CW=PW-2*M;let y=M;
+  const COL={ok:[44,138,75],warn:[184,125,0],bad:[194,58,46],ink:[19,33,42],muted:[86,104,114],line:[203,214,218],accent:[13,102,128],plumb:[210,70,30]};
+  const progress=screens.length===2;const [A,B]=screens;
+  const footer=()=>{const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(...COL.muted);
+    doc.text("Screening aid only. Photo-based measurements are estimates and are not a diagnosis.",M,PH-8);doc.text(`Page ${i} of ${n}`,PW-M,PH-8,{align:"right"})}};
+  const need=h=>{if(y+h>PH-16){doc.addPage();y=M}};
+  const h2=t=>{need(12);doc.setFont("helvetica","bold");doc.setFontSize(12.5);doc.setTextColor(...COL.ink);doc.text(t,M,y+5);y+=9};
+  // header
+  doc.setFillColor(...COL.plumb);doc.rect(M,y,1.2,16,"F");
+  doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(...COL.ink);doc.text(SETTINGS.clinic||"Posture screening",M+5,y+6);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...COL.muted);doc.text(progress?"Progress report: posture and range of motion":"Posture and range of motion screening report",M+5,y+12);
+  y+=22;
+  doc.setFontSize(10);doc.setTextColor(...COL.ink);
+  const info=[["Patient",p.name],["Date of birth",p.dob?fmtDate(p.dob):"–"],progress?["Screenings",`${fmtDate(A.date)} and ${fmtDate(B.date)}`]:["Date",fmtDate(A.date)],["Practitioner",(progress?B:A).practitioner||"–"]];
+  if((progress?B:A).heightCm)info.push(["Height",`${(progress?B:A).heightCm} cm`]);
+  info.forEach(([k,val],i)=>{const x=M+(i%2)*(CW/2),yy=y+Math.floor(i/2)*6;doc.setFont("helvetica","bold");doc.text(k+":",x,yy);doc.setFont("helvetica","normal");doc.text(String(val),x+28,yy)});
+  y+=6*Math.ceil(info.length/2)+2;doc.setDrawColor(...COL.line);doc.line(M,y,PW-M,y);y+=6;
+  const dot=(x,yy,s)=>{doc.setFillColor(...(COL[s]||COL.line));doc.circle(x,yy-1.2,1.3,"F")};
+  // posture
+  const views=VIEW_ORDER.filter(k=>screens.every(s=>s.views&&s.views[k]&&s.views[k].points));
+  if(views.length){h2("Posture");
+    for(const k of views){
+      const item={type:"posture",key:k};
+      if(progress){
+        need(120);doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.text(VIEWS[k].label,M,y+4);y+=7;
+        const imgs=[];for(const s of screens)imgs.push(await renderAnnotated(item,s.views[k],700,1000,true));
+        const w=40;let maxh=0;imgs.forEach((c,i)=>{const h=w*c.height/c.width;maxh=Math.max(maxh,h);doc.addImage(c.toDataURL("image/jpeg",.85),"JPEG",M+i*(w+4),y,w,h);doc.setFontSize(7.5);doc.setTextColor(...COL.muted);doc.text(fmtDate(screens[i].date),M+i*(w+4),y+h+4)});
+        const mA=postureMetrics(k,A.views[k],A.heightCm),mB=postureMetrics(k,B.views[k],B.heightCm);let ty=y+2;const tx=M+2*w+12;
+        doc.setFontSize(7.5);doc.setTextColor(...COL.muted);doc.setFont("helvetica","bold");doc.text("Measure",tx,ty);doc.text("Before",tx+50,ty);doc.text("After",tx+76,ty);doc.text("Change",tx+102,ty);ty+=5;
+        doc.setFont("helvetica","normal");doc.setFontSize(8.5);
+        mA.forEach((ma,i)=>{const mb=mB[i];doc.setTextColor(...COL.ink);doc.text(ma.label,tx,ty);dot(tx+48,ty,ma.status);doc.text(`${f1(Math.abs(ma.value))}°${ma.mm!=null?` ${ma.mm}mm`:""}`,tx+50.5,ty);dot(tx+74,ty,mb.status);doc.text(`${f1(Math.abs(mb.value))}°${mb.mm!=null?` ${mb.mm}mm`:""}`,tx+76.5,ty);
+          const d=Math.abs(mb.value)-Math.abs(ma.value);if(Math.abs(d)<.5){doc.setTextColor(...COL.muted);doc.text("no change",tx+102,ty)}else{doc.setTextColor(...(d<0?COL.ok:COL.bad));doc.text(`${d>0?"+":"-"}${f1(Math.abs(d))}° ${d<0?"better":"worse"}`,tx+102,ty)}ty+=5.2});
+        y+=Math.max(maxh+8,ty-y)+4;
+      }else{
+        need(95);const c=await renderAnnotated(item,A.views[k],700,1000,true);const w=55,h=Math.min(90,w*c.height/c.width),ww=h*c.width/c.height;
+        doc.addImage(c.toDataURL("image/jpeg",.85),"JPEG",M,y,ww,h);
+        const tx=M+ww+8;let ty=y+4;doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...COL.ink);doc.text(VIEWS[k].label,tx,ty);ty+=7;
+        doc.setFontSize(9);for(const m of postureMetrics(k,A.views[k],A.heightCm)){doc.setFont("helvetica","normal");doc.setTextColor(...COL.ink);doc.text(m.label,tx,ty);dot(tx+64,ty,m.status);doc.text(m.text,tx+67,ty);ty+=6}
+        y+=h+6;
+      }
+    }
+  }
+  // ROM
+  const roms=ROM.filter(t=>screens.every(s=>s.rom&&s.rom[t.key]&&s.rom[t.key].points));
+  if(roms.length){h2("Range of motion");
+    doc.setFontSize(8);doc.setFont("helvetica","bold");doc.setTextColor(...COL.muted);
+    const cx=progress?[M,M+70,M+98,M+126,M+150]:[M,M+80,M+110,M+140];
+    (progress?["Test","Before","After","Typical","Change"]:["Test","Measured","Typical","% of typical"]).forEach((t,i)=>doc.text(t,cx[i],y));y+=5;
+    doc.setFont("helvetica","normal");doc.setFontSize(9);
+    for(const t of roms){need(7);const ra=romValue(t,A.rom[t.key]);doc.setTextColor(...COL.ink);doc.text(`${romName(t)}`,cx[0],y);
+      if(progress){const rb=romValue(t,B.rom[t.key]);dot(cx[1]-2.5,y,ra.status);doc.text(`${Math.round(ra.value)}°`,cx[1],y);dot(cx[2]-2.5,y,rb.status);doc.text(`${Math.round(rb.value)}°`,cx[2],y);doc.text(`${t.norm}°`,cx[3],y);
+        const d=rb.value-ra.value;if(Math.abs(d)<.5){doc.setTextColor(...COL.muted);doc.text("no change",cx[4],y)}else{doc.setTextColor(...(d>0?COL.ok:COL.bad));doc.text(`${d>0?"+":"-"}${Math.round(Math.abs(d))}° ${d>0?"better":"worse"}`,cx[4],y)}}
+      else{dot(cx[1]-2.5,y,ra.status);doc.text(`${Math.round(ra.value)}°`,cx[1],y);doc.text(`${t.norm}°`,cx[2],y);doc.text(`${Math.round(ra.pct*100)}%`,cx[3],y)}
+      y+=6.2}
+    y+=3;
+  }
+  // legend + notes
+  need(10);doc.setFontSize(8);doc.setTextColor(...COL.muted);let lx=M;for(const [s,w] of [["ok","Within guide"],["warn","Mild"],["bad","Notable"]]){dot(lx+1.3,y+1,s);doc.text(w,lx+4,y+1);lx+=30}y+=8;
+  const notes=(progress?B:A).notes;if(notes){h2("Notes");doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...COL.ink);const lines=doc.splitTextToSize(notes,CW);for(const ln of lines){need(5.5);doc.text(ln,M,y);y+=5.2}}
+  footer();
+  const blob=doc.output("blob");const fname=`${p.name} ${progress?"progress":"screening"} ${(progress?B:A).date}.pdf`;
+  const ok=await saveFile(fname,blob,statusEl);if(ok){statusEl.classList.remove("warnmsg");statusEl.textContent="Report ready. Use the share sheet to print, email or save it to Files."}
+}
+
+/* ============================================================
+   Start
+   ============================================================ */
+(async function start(){
+  await Store.open();await loadSettings();buildExample();render();
+  if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+  askPersist();
+  // warm the pose model in the background so the first photo is quick
+  setTimeout(()=>Pose_.init(),1500);
+})();
+</script>
+</body>
+</html>
